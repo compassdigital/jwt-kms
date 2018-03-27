@@ -14,6 +14,16 @@ describe("JWT-KMS", function()
         process.env.should.have.property("KEY_ARN");
 
         done();
+	});
+	
+	it("should instantiate an instance with a empty config", function(done)
+    {
+        jwtkms = new (require("../index.js"))();
+
+		should.exist(jwtkms);
+
+        done();
+
     });
 
     it("should instantiate an instance", function(done)
@@ -76,7 +86,13 @@ describe("JWT-KMS", function()
 
             done();
         }).catch(function(err){ throw err; });
-    });
+	});
+	
+	it("should validate a token", function(done)
+    {
+		jwtkms.validate(token).should.eql(true);
+		done();
+	});
 
     it("should sign a payload with expired expiration date", function(done)
     {
@@ -105,6 +121,94 @@ describe("JWT-KMS", function()
         {
             // Should not get here
         }).catch(function(err){ should.exist(err); done(); });
+	});
+	
+	it("should sign a payload that was issued 10 seconds before your local time", function(done)
+    {
+        jwtkms.sign({foo: "bar"}, {issued_at: new Date(Date.now() + 10000)}, process.env.KEY_ARN).then(function(new_token)
+        {
+            should.exist(new_token);
+            token = new_token;
+
+            done();
+        }).catch(function(err){ throw err; });
+    });
+
+    it("should verify a token that was issued 10 seconds before your local time", function(done)
+    {
+        jwtkms.verify(token).then(function(decoded)
+        {
+            should.exist(decoded);
+            decoded.should.have.property('foo').eql("bar");
+            decoded.should.have.property('iat');
+
+            done();
+        }).catch(function(err){ throw err; });
+	});
+
+	it("should verify a token wthat was issued 10 seconds before your local time", function(done)
+    {
+        jwtkms.verify(token).then(function(decoded)
+        {
+            should.exist(decoded);
+            decoded.should.have.property('foo').eql("bar");
+            decoded.should.have.property('iat');
+
+            done();
+        }).catch(function(err){ throw err; });
+	});
+
+	it("should sign a payload that was issued 1 hour before your local time", function(done)
+    {
+        jwtkms.sign({foo: "bar"}, {issued_at: new Date(Date.now() + 60*60*1000)}, process.env.KEY_ARN).then(function(new_token)
+        {
+            should.exist(new_token);
+            token = new_token;
+
+            done();
+        }).catch(function(err){ throw err; });
+    });
+	
+	it("should not verify a token that was issued 1 hour before your local time", function(done)
+    {
+        jwtkms.verify(token).then(function(decoded)
+        {
+            // Should not get here
+        }).catch(function(err){ should.exist(err); done(); });
+	});
+
+	it("should not validate a token that is expired", function(done)
+    {
+		jwtkms.validate(token).should.eql(false);
+		done();
+	});
+
+	it("should validate a token that can't be decoded", function(done)
+    {
+		jwtkms.validate("BLAH BLAH").should.eql(false);
+		done();
+	});
+	
+	it("should throw a friendly error if passed a token that can't be decoded", function(done)
+    {
+        jwtkms.verify("FOO_BAR").then(function(decoded)
+        {
+            // Should not get here
+		}).catch(function(err)
+		{ 
+			should.exist(err); 
+			err.should.eql("Invalid token");
+			
+			jwtkms.verify("foo.bar.error").then(function(decoded)
+			{
+				// Should not get here
+			}).catch(function(err)
+			{ 
+				should.exist(err); 
+				err.should.eql("Invalid token");
+				done();
+			});
+		});
     });
 
 
